@@ -1,4 +1,4 @@
-import { Search, SlidersHorizontal, X } from "lucide-react";
+import { ArrowRight, Bookmark, CalendarDays, MapPin, Search, SlidersHorizontal, Users, X } from "lucide-react";
 import { useMemo, useState } from "react";
 import { categoryOptions } from "../data/events";
 import { EventCard, EmptyState } from "../components/UI";
@@ -48,7 +48,19 @@ export default function Discover({ events, savedIds, registeredIds, onOpen, onSa
         <div><span className="filter-label">Category</span><div className="filter-options">{categoryOptions.map((item) => <button key={item} className={`filter-chip ${category === item ? "selected" : ""}`} onClick={() => setCategory(item)}>{item}</button>)}</div></div>
       </div>}
       <div className="discover-results-header"><p><strong>{filteredEvents.length}</strong> events to explore</p><span>Updated just now</span></div>
-      {filteredEvents.length ? <div className="event-card-grid discover-grid">{filteredEvents.map((event) => <EventCard key={event.id} event={event} saved={savedIds.includes(event.id)} registered={registeredIds.includes(event.id)} onOpen={() => onOpen(event.id)} onSave={() => onSave(event.id)} />)}</div> : <EmptyState title="No events in this corner yet" detail="Try another search, or clear a filter to see what’s happening around campus." action={<button className="button button-primary" onClick={() => { setQuery(""); setCategory("All events"); setMode("Any format"); }}>Clear filters</button>} />}
+      {filteredEvents.length ? <>
+        <article className="discover-feature">
+          <div className="discover-feature-copy">
+            <div className="discover-feature-kicker"><span className="category-pill">{filteredEvents[0].category}</span><span>Campus pick</span></div>
+            <button className="discover-feature-title" onClick={() => onOpen(filteredEvents[0].id)}><h2>{filteredEvents[0].title}</h2></button>
+            <p>{filteredEvents[0].shortDescription}</p>
+            <div className="discover-feature-meta"><span><CalendarDays size={15} />{new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric" }).format(new Date(filteredEvents[0].date))}</span><span><MapPin size={15} />{filteredEvents[0].venue.split(",")[0]}</span><span><Users size={15} />{filteredEvents[0].registered} going</span></div>
+            <button className="button button-primary" onClick={() => onOpen(filteredEvents[0].id)}>Explore this event <ArrowRight size={15} /></button>
+          </div>
+          <div className="discover-feature-aside"><button className={`feature-save ${savedIds.includes(filteredEvents[0].id) ? "is-saved" : ""}`} onClick={() => onSave(filteredEvents[0].id)} aria-label={savedIds.includes(filteredEvents[0].id) ? "Remove saved event" : "Save event"}><Bookmark size={17} fill={savedIds.includes(filteredEvents[0].id) ? "currentColor" : "none"} /></button><small>Selected for campus</small></div>
+        </article>
+        {filteredEvents.length > 1 && <section className="discover-listing-section"><div className="discover-listing-heading"><h2>More to explore</h2><span>{filteredEvents.length - 1} more events</span></div><div className="event-card-grid discover-grid">{filteredEvents.slice(1).map((event) => <EventCard key={event.id} event={event} saved={savedIds.includes(event.id)} registered={registeredIds.includes(event.id)} onOpen={() => onOpen(event.id)} onSave={() => onSave(event.id)} />)}</div></section>}
+      </> : <EmptyState title="No events in this corner yet" detail="Try another search, or clear a filter to see what’s happening around campus." action={<button className="button button-primary" onClick={() => { setQuery(""); setCategory("All events"); setMode("Any format"); }}>Clear filters</button>} />}
     </div>
   );
 }

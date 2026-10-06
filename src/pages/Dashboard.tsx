@@ -1,4 +1,4 @@
-import { ArrowRight, ArrowUpRight, Award, Bell, CalendarDays, ChevronRight, Clock3, MapPin, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Award, Bell, Bookmark, CalendarDays, ChevronRight, Clock3, MapPin, TrendingUp, Users } from "lucide-react";
 import type { CampusEvent, CampusNotification, AppPage } from "../types";
 import { EventCard, EventRow, SectionHeading } from "../components/UI";
 import OpportunityCard, { recommendedOpportunities } from "../components/OpportunityCard";
@@ -30,33 +30,30 @@ export default function Dashboard({ events, savedIds, registeredIds, notificatio
       <header className="welcome-header">
         <div>
           <p className="welcome-date">{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
-          <h1>{greeting}, JSR <span aria-hidden="true">✳</span></h1>
-          <p className="welcome-subtitle">{recommended.length} things worth your time, picked from around campus.</p>
+          <h1>Your campus, <em>in motion.</em></h1>
+          <p className="welcome-subtitle">{greeting}, JSR. {recommended.length} thoughtful picks from around campus.</p>
         </div>
         <div className="dashboard-quick-actions">
-          <button className="quiet-action" onClick={() => onNavigate("passport")}><Award size={17} />My Passport</button>
-          <button className="quiet-action" onClick={() => onNavigate("notifications")}><Bell size={17} />{notifications.filter((note) => !note.read).length} new</button>
+          <button className="button button-ghost" onClick={() => onNavigate("passport")}><Award size={16} />My Passport</button>
+          <button className="button button-primary" onClick={() => onNavigate("discover")}>Explore campus <ArrowRight size={15} /></button>
+          <button className="dashboard-notification-link" onClick={() => onNavigate("notifications")}><Bell size={15} />{notifications.filter((note) => !note.read).length} new</button>
         </div>
       </header>
 
-      <section className="dashboard-top-grid">
-        <article className="feature-event" style={{ "--feature-accent": firstEvent.accent } as React.CSSProperties}>
-          <img src={`https://images.unsplash.com/${firstEvent.image}?auto=format&fit=crop&w=1400&q=85`} alt="" />
-          <div className="feature-shade" />
-          <div className="feature-copy">
-            <span className="feature-eyebrow"><span className="live-dot" /> Campus pick</span>
-            <h2>{firstEvent.title}</h2>
-            <p>{firstEvent.shortDescription}</p>
-            <div className="feature-meta"><span><CalendarDays size={15} />{new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric" }).format(new Date(firstEvent.date))}</span><span><MapPin size={15} />{firstEvent.venue.split(",")[0]}</span></div>
-            <button className="feature-button" onClick={() => onOpen(firstEvent.id)}>See what it’s about <ArrowRight size={16} /></button>
-          </div>
-          <div className="feature-side-note"><Sparkles size={15} /> Made for curious minds</div>
+      <section className="dashboard-feature-grid">
+        <article className="dashboard-feature">
+          <div className="dashboard-feature-heading"><span>Campus pick</span><button className={`feature-save ${savedIds.includes(firstEvent.id) ? "is-saved" : ""}`} onClick={() => onSave(firstEvent.id)} aria-label={savedIds.includes(firstEvent.id) ? "Remove saved event" : "Save event"}><Bookmark size={17} fill={savedIds.includes(firstEvent.id) ? "currentColor" : "none"} /></button></div>
+          <p className="dashboard-feature-kicker">{firstEvent.category} <span>·</span> A campus pick</p>
+          <button className="dashboard-feature-title" onClick={() => onOpen(firstEvent.id)}><h2>{firstEvent.title}</h2></button>
+          <p className="dashboard-feature-description">{firstEvent.shortDescription}</p>
+          <div className="dashboard-feature-meta"><span><CalendarDays size={15} />{new Intl.DateTimeFormat("en", { weekday: "short", month: "short", day: "numeric" }).format(new Date(firstEvent.date))}</span><span><MapPin size={15} />{firstEvent.venue.split(",")[0]}</span><span><Users size={15} />{firstEvent.registered} going</span></div>
+          <button className="text-link dashboard-feature-link" onClick={() => onOpen(firstEvent.id)}>Read the event details <ArrowRight size={15} /></button>
         </article>
 
         <aside className="up-next-panel">
           <div className="up-next-heading">
-            <div><span className="section-kicker">Your calendar</span><h2>Up next</h2></div>
-            <button className="icon-button" aria-label="Open calendar" onClick={() => onNavigate("calendar")}><ArrowUpRight size={18} /></button>
+            <div><span className="section-kicker">ON YOUR CALENDAR</span><h2>Up next</h2></div>
+            <button className="text-link" aria-label="Open calendar" onClick={() => onNavigate("calendar")}><ArrowUpRight size={18} /></button>
           </div>
           {upcoming.length ? upcoming.slice(0, 3).map((event) => <EventRow key={event.id} event={event} onOpen={() => onOpen(event.id)} />) : (
             <div className="calendar-empty"><CalendarDays size={21} /><p>Your calendar’s ready for a first plan.</p><button onClick={() => onNavigate("discover")}>Find an event <ChevronRight size={14} /></button></div>
@@ -66,7 +63,7 @@ export default function Dashboard({ events, savedIds, registeredIds, notificatio
       </section>
 
       <section className="section-block">
-        <SectionHeading title="Picked for you" detail="A little more signal, a little less noise." action={<button className="text-link" onClick={() => onNavigate("discover")}>See all <ArrowRight size={15} /></button>} />
+        <SectionHeading title="Worth your time" detail="A little more signal, a little less noise." action={<button className="text-link" onClick={() => onNavigate("discover")}>All events <ArrowRight size={15} /></button>} />
         <div className="event-card-grid">
           {recommended.map((event) => <EventCard key={event.id} event={event} saved={savedIds.includes(event.id)} registered={registeredIds.includes(event.id)} onOpen={() => onOpen(event.id)} onSave={() => onSave(event.id)} />)}
         </div>

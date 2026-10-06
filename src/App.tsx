@@ -316,6 +316,32 @@ export default function App() {
   return (
     <div className="app-shell">
       <aside className="desktop-sidebar">{sidebar()}</aside>
+      <header className="editorial-header">
+        <button className="brand-lockup" onClick={() => openPage(state.role === "student" ? "home" : state.role)} aria-label="Campus Signal home">
+          <span className="brand-mark"><span /><span /><span /></span>
+          <span className="brand-name">campus<span>signal</span></span>
+        </button>
+        <nav className="editorial-nav" aria-label="Main navigation">
+          {navigation[state.role].map(({ label, page }, index) => {
+            const active = state.page === page && (page !== "organizer" || index === 0) && (page !== "admin" || index === 0);
+            return <button key={`${label}-${index}`} className={active ? "active" : ""} onClick={() => openPage(page)}>{label}</button>;
+          })}
+        </nav>
+        <div className="editorial-actions">
+          <button className="editorial-search" onClick={() => openPage("discover")} aria-label="Search events"><Search size={17} /></button>
+          <button className="editorial-search" onClick={() => openPage("settings")} aria-label="Settings"><Settings size={17} /></button>
+          <button className="editorial-notification" aria-label={`${unreadCount} unread notifications`} onClick={() => openPage("notifications")}><Bell size={17} />{unreadCount > 0 && <span>{unreadCount}</span>}</button>
+          <div className="topbar-role editorial-role">
+            <button onClick={() => setRoleMenuOpen(!roleMenuOpen)} aria-expanded={roleMenuOpen}>
+              <span className={`profile-avatar avatar-${state.role}`}>{activeIdentity.initials}</span>
+              <span>{state.role === "student" ? "Student" : state.role === "organizer" ? "Organizer" : "Admin"}</span>
+              <ChevronDown size={14} />
+            </button>
+            {roleMenuOpen && <div className="role-popover topbar-role-popover"><span>Demo workspace</span>{roles.map((role) => <button key={role.value} className={state.role === role.value ? "current-role" : ""} onClick={() => changeRole(role.value)}><span className={`profile-avatar avatar-${role.value}`}>{role.initials}</span><span>{role.label}</span>{state.role === role.value && <Check size={15} />}</button>)}</div>}
+          </div>
+          {state.role !== "student" && <button className="button button-primary editorial-create" onClick={openCreateEvent}><Plus size={16} />Create event</button>}
+        </div>
+      </header>
       <header className="mobile-topbar"><button className="brand-lockup" onClick={() => openPage(state.role === "student" ? "home" : state.role)}><span className="brand-mark"><span /><span /><span /></span><span className="brand-name">campus<span>signal</span></span></button><div><button className="icon-button" onClick={() => openPage("discover")} aria-label="Search events"><Search size={19} /></button><button className="icon-button" onClick={() => setMobileMenuOpen(!mobileMenuOpen)} aria-label={mobileMenuOpen ? "Close menu" : "Open menu"}>{mobileMenuOpen ? <X size={20} /> : <Menu size={20} />}</button></div></header>
       {mobileMenuOpen && <div className="mobile-menu-overlay" onMouseDown={(event) => { if (event.target === event.currentTarget) setMobileMenuOpen(false); }}>{sidebar(true)}</div>}
       <main className="main-area">

@@ -46,12 +46,8 @@ export function EventCard({
   const month = new Intl.DateTimeFormat("en", { month: "short" }).format(date);
   return (
     <article className="event-card">
-      <button className="event-image-button" onClick={onOpen} aria-label={`View ${event.title}`}>
-        <img src={eventImageUrl(event.image)} alt="" loading="lazy" />
-        <span className="category-pill">{event.category}</span>
-        <span className="date-stamp"><strong>{day}</strong><small>{month}</small></span>
-      </button>
       <div className="event-card-content">
+        <div className="event-card-topline"><span className="category-pill">{event.category}</span><span className="event-card-date">{month} {day}</span></div>
         <div className="event-organizer">
           <span className="organizer-avatar">{event.organizerInitials}</span>
           <span>{event.organizer}</span>
