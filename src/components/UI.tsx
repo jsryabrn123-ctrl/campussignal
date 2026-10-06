@@ -24,6 +24,10 @@ export function EmptyState({ title, detail, action }: { title: string; detail: s
   );
 }
 
+export function eventImageUrl(image: string, width = 720, quality = 78) {
+  return image.startsWith("http") ? image : `https://images.unsplash.com/${image}?auto=format&fit=crop&w=${width}&q=${quality}`;
+}
+
 export function EventCard({
   event,
   saved,
@@ -43,7 +47,7 @@ export function EventCard({
   return (
     <article className="event-card">
       <button className="event-image-button" onClick={onOpen} aria-label={`View ${event.title}`}>
-        <img src={`https://images.unsplash.com/${event.image}?auto=format&fit=crop&w=720&q=78`} alt="" loading="lazy" />
+        <img src={eventImageUrl(event.image)} alt="" loading="lazy" />
         <span className="category-pill">{event.category}</span>
         <span className="date-stamp"><strong>{day}</strong><small>{month}</small></span>
       </button>
@@ -57,11 +61,13 @@ export function EventCard({
         <div className="event-meta">
           <span><Clock3 size={14} />{event.startTime}</span>
           <span><MapPin size={14} />{event.venue.split(",")[0]}</span>
+          <span>{event.mode}</span>
         </div>
         <div className="event-card-footer">
           <span className={`registration-note ${registered ? "is-registered" : ""}`}>
             {registered ? "You’re going" : <><Users size={14} />{event.registered} going</>}
           </span>
+          <span className={`event-listing-status ${event.status === "Registration open" || event.status === "Published" ? "open" : ""}`}>{event.status === "Registration open" || event.status === "Published" ? event.registered >= event.capacity ? "Full" : "Open" : event.status}</span>
           <button className={`icon-button bookmark-button ${saved ? "is-saved" : ""}`} aria-label={saved ? "Remove saved event" : "Save event"} onClick={onSave}>
             <Bookmark size={17} fill={saved ? "currentColor" : "none"} />
           </button>

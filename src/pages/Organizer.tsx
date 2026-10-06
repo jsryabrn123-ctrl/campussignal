@@ -1,4 +1,4 @@
-import { ArrowUpRight, CalendarDays, ChevronDown, Download, Plus, Users, Eye, Bookmark, BellRing } from "lucide-react";
+import { ArrowUpRight, CalendarDays, ChevronDown, Download, Pencil, Plus, Trash2, Users, Eye, Bookmark, BellRing } from "lucide-react";
 import type { CampusEvent } from "../types";
 import { SectionHeading } from "../components/UI";
 
@@ -6,10 +6,13 @@ interface OrganizerProps {
   events: CampusEvent[];
   onCreate: () => void;
   onOpen: (id: string) => void;
+  onEdit: (id: string) => void;
+  onDelete: (id: string) => void;
+  onPublish: (id: string) => void;
   onCancel: (id: string) => void;
 }
 
-export default function Organizer({ events, onCreate, onOpen, onCancel }: OrganizerProps) {
+export default function Organizer({ events, onCreate, onOpen, onEdit, onDelete, onPublish, onCancel }: OrganizerProps) {
   const totalSignups = events.reduce((sum, event) => sum + event.registered, 0);
   const upcoming = events.filter((event) => new Date(event.date) > new Date() && event.status !== "Cancelled");
   const stats = [
@@ -24,7 +27,7 @@ export default function Organizer({ events, onCreate, onOpen, onCancel }: Organi
     <div className="page-content organizer-page">
       <header className="organizer-header">
         <div><p className="welcome-date">Organizer workspace</p><h1>Your events, in motion.</h1><p className="welcome-subtitle">A clear view of the things your community is making happen.</p></div>
-        <button className="button button-primary" onClick={onCreate}><Plus size={17} />Create an event</button>
+        <button className="button button-primary" onClick={onCreate}><Plus size={17} />Create Event</button>
       </header>
       <div className="metric-grid">{stats.map(({ label, value, change, icon: Icon, tint }) => <article className="metric-card" key={label}><div className="metric-card-top"><span className={`metric-icon ${tint}`}><Icon size={18} /></span><span className="metric-change"><ArrowUpRight size={13} />{change}</span></div><strong>{value}</strong><span className="metric-label">{label}</span></article>)}</div>
       <section className="organizer-analytics-grid">
@@ -43,7 +46,7 @@ export default function Organizer({ events, onCreate, onOpen, onCancel }: Organi
       <section className="organizer-events-section">
         <SectionHeading title="Your event board" detail={`${upcoming.length} events coming up`} action={<button className="button button-subtle"><Download size={15} />Export list</button>} />
         <div className="table-wrap"><table className="data-table"><thead><tr><th>Event</th><th>Date</th><th>Sign-ups</th><th>Capacity</th><th>Status</th><th aria-label="Actions" /></tr></thead>
-          <tbody>{events.slice(0, 8).map((event) => <tr key={event.id}><td><button className="table-event" onClick={() => onOpen(event.id)}><span className="table-event-icon" style={{ background: event.accent }}><CalendarDays size={17} /></span><span><strong>{event.title}</strong><small>{event.organizer}</small></span></button></td><td>{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(event.date))}</td><td><span className="table-signups"><Users size={14} />{event.registered}</span></td><td><span>{event.registered} / {event.capacity}</span></td><td><span className={`status-badge ${event.status === "Cancelled" ? "status-cancelled" : "status-open"}`}>{event.status === "Cancelled" ? "Cancelled" : event.registered >= event.capacity ? "Full" : "Open"}</span></td><td><button className="table-action" onClick={() => event.status === "Cancelled" ? onOpen(event.id) : onCancel(event.id)}>{event.status === "Cancelled" ? "View" : "Manage"}</button></td></tr>)}</tbody>
+          <tbody>{events.map((event) => <tr key={event.id}><td><button className="table-event" onClick={() => onOpen(event.id)}><span className="table-event-icon" style={{ background: event.accent }}><CalendarDays size={17} /></span><span><strong>{event.title}</strong><small>{event.organizer}</small></span></button></td><td>{new Intl.DateTimeFormat("en", { month: "short", day: "numeric" }).format(new Date(event.date))}</td><td><span className="table-signups"><Users size={14} />{event.registered}</span></td><td><span>{event.registered} / {event.capacity}</span></td><td><span className={`status-badge ${event.status === "Draft" ? "status-draft" : event.status === "Cancelled" ? "status-cancelled" : "status-open"}`}>{event.status === "Draft" ? "Draft" : event.status === "Cancelled" ? "Cancelled" : event.registered >= event.capacity ? "Full" : "Open"}</span></td><td><div className="event-management-actions"><button className="table-action" onClick={() => onEdit(event.id)} aria-label={`Edit ${event.title}`}><Pencil size={13} />Edit</button>{event.status === "Draft" || event.status === "Cancelled" || event.status === "Registration closed" ? <button className="table-action" onClick={() => onPublish(event.id)}>Publish</button> : <button className="table-action" onClick={() => onCancel(event.id)}>Cancel</button>}<button className="table-action delete-event-action" onClick={() => onDelete(event.id)} aria-label={`Delete ${event.title}`}><Trash2 size={13} />Delete</button></div></td></tr>)}</tbody>
         </table></div>
       </section>
       <section className="organizer-insights"><div className="insight-icon"><Eye size={18} /></div><div><strong>Make the next one easier to find.</strong><p>Targeted announcements reach students who care, without adding another campus-wide ping.</p></div><span className="insight-proof"><Bookmark size={14} /> 2.6× more saves</span></section>

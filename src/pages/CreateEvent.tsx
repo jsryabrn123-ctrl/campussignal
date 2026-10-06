@@ -1,138 +1,244 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ArrowRight, Check, ChevronRight, CircleCheck, MapPin, Sparkles, Users } from "lucide-react";
+import { ArrowLeft, ImagePlus } from "lucide-react";
 import type { CampusEvent } from "../types";
+import { eventImageUrl } from "../components/UI";
 
-const steps = ["The basics", "When & where", "Who can join", "Registration", "Ready to share"];
-const optionTags = ["AI & ML", "Technology", "Design", "Robotics", "Career", "Entrepreneurship", "Research", "Creative"];
+const categories = ["Technology", "AI & ML", "Design", "Robotics", "Career", "Hackathon", "Competition", "Business", "Research", "Creative", "Culture"];
+const defaultImage = "photo-1516321318423-f06f85e504b3";
 
-interface Draft {
+function localDate(value: Date) {
+  return `${value.getFullYear()}-${String(value.getMonth() + 1).padStart(2, "0")}-${String(value.getDate()).padStart(2, "0")}`;
+}
+
+function nextDate(days: number) {
+  const date = new Date();
+  date.setDate(date.getDate() + days);
+  return localDate(date);
+}
+
+interface EventForm {
   title: string;
-  category: string;
   description: string;
+  category: string;
+  image: string;
   date: string;
   startTime: string;
   endTime: string;
   venue: string;
   mode: CampusEvent["mode"];
-  eligibility: string;
-  capacity: number;
+  organizer: string;
   deadline: string;
+  registrationLink: string;
+  capacity: string;
+  eligibility: string;
+  skills: string;
+  contactInfo: string;
   audience: string[];
-  tags: string[];
 }
 
-function localDateAfter(days: number) {
-  const date = new Date();
-  date.setDate(date.getDate() + days);
-  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
+function blankForm(organizer: string): EventForm {
+  return {
+    title: "",
+    description: "",
+    category: "Technology",
+    image: defaultImage,
+    date: nextDate(7),
+    startTime: "14:00",
+    endTime: "16:00",
+    venue: "",
+    mode: "In person",
+    organizer,
+    deadline: "",
+    registrationLink: "",
+    capacity: "",
+    eligibility: "Open to all students",
+    skills: "",
+    contactInfo: "",
+    audience: [],
+  };
 }
 
-const emptyDraft: Draft = {
-  title: "",
-  category: "Technology",
-  description: "",
-  date: localDateAfter(7),
-  startTime: "14:00",
-  endTime: "16:00",
-  venue: "",
-  mode: "In person",
-  eligibility: "Open to all students",
-  capacity: 80,
-  deadline: localDateAfter(6),
-  audience: [],
-  tags: [],
-};
+function formFromEvent(event: CampusEvent): EventForm {
+  return {
+    title: event.title,
+    description: event.shortDescription || event.description,
+    category: event.category,
+    image: event.image,
+    date: localDate(new Date(event.date)),
+    startTime: event.startTime,
+    endTime: event.endTime,
+    venue: event.venue,
+    mode: event.mode,
+    organizer: event.organizer,
+    deadline: event.deadline ? localDate(new Date(event.deadline)) : "",
+    registrationLink: event.registrationLink ?? "",
+    capacity: event.capacity ? String(event.capacity) : "",
+    eligibility: event.eligibility,
+    skills: event.skills.join(", "),
+    contactInfo: event.contactInfo ?? "",
+    audience: [
+      ...(event.targetAudience?.departments ?? []),
+      ...(event.targetAudience?.years ?? []).map((year) => `${year}${year === 2 ? "nd" : "rd"} year`),
+      ...(event.targetAudience?.interests ?? []),
+    ],
+  };
+}
 
-export default function CreateEvent({ onClose, onPublish }: { onClose: () => void; onPublish: (event: CampusEvent) => void }) {
-  const [step, setStep] = useState(0);
-  const [draft, setDraft] = useState<Draft>(() => {
+export default function CreateEvent({
+  role,
+  event,
+  onClose,
+  onSaveDraft,
+  onPublish,
+  onSaveChanges,
+}: {
+  role: "organizer" | "admin";
+  event?: CampusEvent;
+  onClose: () => void;
+  onSaveDraft: (event: CampusEvent) => void;
+  onPublish: (event: CampusEvent) => void;
+  onSaveChanges: (event: CampusEvent) => void;
+}) {
+  const [form, setForm] = useState<EventForm>(() => {
+    if (event) return formFromEvent(event);
     try {
-      const stored = localStorage.getItem("campus-signal-draft");
-      return stored ? { ...emptyDraft, ...JSON.parse(stored) as Partial<Draft> } : emptyDraft;
+      const saved = localStorage.getItem("campus-signal-draft");
+      return saved ? { ...blankForm(role === "admin" ? "Campus Administration" : "Computer Science Club"), ...JSON.parse(saved) as Partial<EventForm> } : blankForm(role === "admin" ? "Campus Administration" : "Computer Science Club");
     } catch (error) {
       console.warn("Saved event draft could not be restored.", error);
-      return emptyDraft;
+      return blankForm(role === "admin" ? "Campus Administration" : "Computer Science Club");
     }
   });
   const [error, setError] = useState("");
+  const [imageError, setImageError] = useState(false);
 
   useEffect(() => {
-    localStorage.setItem("campus-signal-draft", JSON.stringify(draft));
-  }, [draft]);
+    if (!event) localStorage.setItem("campus-signal-draft", JSON.stringify(form));
+  }, [event, form]);
 
-  const update = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((current) => ({ ...current, [key]: value }));
-  const validate = () => {
-    if (step === 0 && (!draft.title.trim() || !draft.description.trim())) return "Add an event name and a short description to continue.";
-    if (step === 1 && (!draft.date || !draft.venue.trim() || new Date(`${draft.date}T${draft.startTime}`) <= new Date())) return "Choose a future date, a start time and a location.";
-    if (step === 1 && new Date(`${draft.date}T${draft.endTime}`) <= new Date(`${draft.date}T${draft.startTime}`)) return "The end time needs to be after the start time.";
-    if (step === 3 && (draft.capacity < 1 || draft.capacity > 5000 || new Date(`${draft.deadline}T23:59`) > new Date(`${draft.date}T${draft.startTime}`))) return "Set a capacity up to 5,000 and a deadline before the event starts.";
+  const set = <K extends keyof EventForm>(key: K, value: EventForm[K]) => {
+    setForm((current) => ({ ...current, [key]: value }));
+    setError("");
+  };
+
+  const validate = (publishing: boolean) => {
+    if (![form.title, form.description, form.category, form.date, form.startTime, form.endTime, form.venue, form.organizer].every((value) => value.trim())) {
+      return "Complete the required event details before continuing.";
+    }
+    if (form.endTime <= form.startTime) return "End time must be after start time.";
+    if (publishing && new Date(`${form.date}T${form.startTime}`) < new Date()) return "The event date cannot be in the past.";
+    if (form.deadline && new Date(form.deadline) > new Date(form.date)) return "The registration deadline cannot be after the event date.";
+    if (form.registrationLink) {
+      try {
+        const url = new URL(form.registrationLink);
+        if (!["http:", "https:"].includes(url.protocol)) return "Enter a valid http or https registration link.";
+      } catch {
+        return "Enter a valid registration link, including https://.";
+      }
+    }
     return "";
   };
-  const next = () => {
-    const message = validate();
-    if (message) { setError(message); return; }
-    setError("");
-    setStep((current) => Math.min(steps.length - 1, current + 1));
-  };
-  const publish = () => {
-    const message = validate();
-    if (message) { setError(message); setStep(1); return; }
-    const date = new Date(`${draft.date}T${draft.startTime}`);
-    const deadline = new Date(`${draft.deadline}T18:00`);
-    onPublish({
-      id: `event-${Date.now()}`,
-      title: draft.title.trim(),
-      shortDescription: draft.description.trim(),
-      description: `${draft.description.trim()} Join us for a welcoming session, practical takeaways, and time to meet other curious students.`,
-      category: draft.category,
-      organizer: "Computer Science Club",
-      organizerInitials: "CS",
-      department: "Computer Science",
-      date: date.toISOString(),
-      startTime: draft.startTime,
-      endTime: draft.endTime,
-      venue: draft.venue.trim(),
-      mode: draft.mode,
-      deadline: deadline.toISOString(),
-      capacity: draft.capacity,
-      registered: 0,
-      status: "Registration open",
-      eligibility: draft.eligibility,
-      skills: draft.tags.slice(0, 2),
-      tags: draft.tags,
-      image: "photo-1516321318423-f06f85e504b3",
-      accent: "#dbe4ff",
-      trending: 45,
-      free: true,
-      audience: draft.audience.length ? draft.audience.join(", ") : "All students",
+
+  const buildEvent = (status: CampusEvent["status"]): CampusEvent => {
+    const skills = form.skills.split(",").map((skill) => skill.trim()).filter(Boolean);
+    const previous = event;
+    const date = form.date || nextDate(7);
+    const startTime = form.startTime || "14:00";
+    const endTime = form.endTime || "16:00";
+    const organizer = form.organizer.trim() || (role === "admin" ? "Campus Administration" : "Computer Science Club");
+    const deadline = form.deadline ? new Date(`${form.deadline}T18:00`).toISOString() : new Date(`${date}T18:00`).toISOString();
+    const initials = organizer.split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase();
+    return {
+      id: previous?.id ?? `event-${Date.now()}`,
+      title: form.title.trim() || "Untitled draft",
+      shortDescription: form.description.trim(),
+      description: form.description.trim(),
+      category: form.category,
+      organizer,
+      organizerInitials: initials,
+      department: previous?.department ?? (role === "admin" ? "Campus" : "Computer Science"),
+      date: new Date(`${date}T${startTime}`).toISOString(),
+      startTime,
+      endTime,
+      venue: form.venue.trim(),
+      mode: form.mode,
+      deadline,
+      capacity: Number(form.capacity) || 5000,
+      registered: previous?.registered ?? 0,
+      status,
+      eligibility: form.eligibility.trim() || "Open to all students",
+      skills,
+      tags: skills,
+      image: form.image.trim() || defaultImage,
+      accent: previous?.accent ?? "#dbe4ff",
+      trending: previous?.trending ?? 45,
+      free: previous?.free ?? true,
+      ownerId: previous
+        ? previous.ownerId ?? (role === "organizer" ? "computer-science-club" : undefined)
+        : role === "admin" ? "admin" : "computer-science-club",
+      registrationLink: form.registrationLink.trim() || undefined,
+      contactInfo: form.contactInfo.trim() || undefined,
+      audience: form.audience.length ? form.audience.join(", ") : "All students",
       targetAudience: {
-        departments: draft.audience.filter((item) => ["Computer Science", "Design"].includes(item)),
-        years: [2, 3].filter((year) => draft.audience.includes(`${year}${year === 2 ? "nd" : "rd"} year`)),
-        interests: draft.audience.filter((item) => ["AI & ML", "Technology", "Robotics", "Career"].includes(item)),
+        departments: form.audience.filter((item) => ["Computer Science", "Design"].includes(item)),
+        years: [2, 3].filter((year) => form.audience.includes(`${year}${year === 2 ? "nd" : "rd"} year`)),
+        interests: form.audience.filter((item) => ["AI & ML", "Technology", "Robotics", "Career"].includes(item)),
       },
-    });
-    localStorage.removeItem("campus-signal-draft");
+    };
   };
-  const toggle = (key: "audience" | "tags", item: string) => {
-    const current = draft[key];
-    update(key, current.includes(item) ? current.filter((value) => value !== item) : [...current, item]);
+
+  const submit = (action: "draft" | "publish" | "edit") => {
+    const message = action === "draft" ? "" : validate(action === "publish");
+    if (message) {
+      setError(message);
+      return;
+    }
+    const result = buildEvent(action === "draft" ? "Draft" : action === "edit" && event ? event.status : "Registration open");
+    localStorage.removeItem("campus-signal-draft");
+    if (action === "draft") onSaveDraft(result);
+    else if (action === "edit") onSaveChanges(result);
+    else onPublish(result);
   };
 
   return (
-    <div className="modal-backdrop create-backdrop" role="presentation">
-      <section className="create-event-modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
-        <header className="create-modal-header"><button className="icon-button" onClick={onClose} aria-label="Close event creator"><ArrowLeft size={19} /></button><div><span className="create-overline">Organizer workspace</span><h2 id="create-title">Put something good on.</h2></div><span className="draft-saved"><CircleCheck size={14} />Draft saved</span></header>
-        <div className="step-progress" aria-label={`Step ${step + 1} of ${steps.length}`}>{steps.map((label, index) => <div key={label} className={`step-item ${step === index ? "current" : ""} ${step > index ? "complete" : ""}`}><span>{step > index ? <Check size={14} /> : index + 1}</span><small>{label}</small></div>)}</div>
-        <div className="create-form-content">
-          {step === 0 && <div className="form-step"><h3>Start with the good bit.</h3><p>Give people a clear reason to show up.</p><label className="form-label">Event name<input value={draft.title} maxLength={80} onChange={(event) => update("title", event.target.value)} placeholder="e.g. Build with AI: a hands-on lab" /></label><label className="form-label">Category<select value={draft.category} onChange={(event) => update("category", event.target.value)}>{optionTags.map((tag) => <option key={tag}>{tag}</option>)}<option>Competition</option><option>Business</option><option>Culture</option></select></label><label className="form-label">Short description<textarea value={draft.description} maxLength={180} onChange={(event) => update("description", event.target.value)} placeholder="What will students get to do, learn or meet?" rows={3} /><small>{draft.description.length}/180</small></label><span className="form-hint">A good description is specific, friendly, and easy to scan.</span></div>}
-          {step === 1 && <div className="form-step"><h3>Make it easy to find.</h3><p>Clear logistics make plans feel possible.</p><div className="form-two-col"><label className="form-label">Date<input type="date" value={draft.date} onChange={(event) => update("date", event.target.value)} /></label><label className="form-label">Format<select value={draft.mode} onChange={(event) => update("mode", event.target.value as Draft["mode"])}><option>In person</option><option>Online</option><option>Hybrid</option></select></label><label className="form-label">Starts<input type="time" value={draft.startTime} onChange={(event) => update("startTime", event.target.value)} /></label><label className="form-label">Ends<input type="time" value={draft.endTime} onChange={(event) => update("endTime", event.target.value)} /></label></div><label className="form-label">Location<input value={draft.venue} onChange={(event) => update("venue", event.target.value)} placeholder="Room, building or meeting link" /><span className="input-icon"><MapPin size={15} /></span></label></div>}
-          {step === 2 && <div className="form-step"><h3>Help the right people find it.</h3><p>Tell students what they need to join, and who should hear about it.</p><label className="form-label">Eligibility<select value={draft.eligibility} onChange={(event) => update("eligibility", event.target.value)}><option>Open to all students</option><option>All undergraduate students</option><option>Beginner friendly</option><option>Bring a team</option></select></label><div className="form-label"><span>Topics and skills</span><div className="form-choice-grid">{optionTags.map((tag) => <button type="button" key={tag} className={`filter-chip ${draft.tags.includes(tag) ? "selected" : ""}`} onClick={() => toggle("tags", tag)}>{tag}</button>)}</div></div><div className="targeting-note"><Sparkles size={17} /><span><strong>Thoughtful reach starts here.</strong><small>Students with matching interests will see this closer to the top of their feed.</small></span></div><div className="form-label"><span>Send an announcement to</span><div className="form-choice-grid">{["Computer Science", "Design", "2nd year", "3rd year", "AI & ML"].map((item) => <button type="button" key={item} className={`filter-chip ${draft.audience.includes(item) ? "selected" : ""}`} onClick={() => toggle("audience", item)}>{item}</button>)}</div><small className="form-footnote">{draft.audience.length ? `Targeting ${draft.audience.join(", ")}` : "No filters selected — visible to everyone."}</small></div></div>}
-          {step === 3 && <div className="form-step"><h3>Save a place for everyone.</h3><p>Set a limit and give people a fair heads-up.</p><label className="form-label">Available places<input type="number" min="1" max="5000" value={draft.capacity} onChange={(event) => update("capacity", Number(event.target.value))} /><span className="input-icon"><Users size={15} /></span></label><label className="form-label">Registration closes<input type="date" value={draft.deadline} onChange={(event) => update("deadline", event.target.value)} /></label><div className="targeting-note"><Users size={17} /><span><strong>Waitlist is on by default.</strong><small>When all {draft.capacity || "your"} places are taken, students can join the waitlist.</small></span></div></div>}
-          {step === 4 && <div className="form-step review-step"><h3>Ready for the campus?</h3><p>Take one last look. You can edit any detail after publishing.</p><article className="preview-event"><span className="preview-image"><img src="https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=900&q=80" alt="" /></span><div><span className="category-pill">{draft.category}</span><h4>{draft.title || "Your event name"}</h4><p>{draft.description || "Your short description will show here."}</p><span className="preview-meta"><MapPin size={14} />{draft.venue || "Add a location"} <span>{draft.date}</span></span></div></article><div className="targeting-note success-note"><CircleCheck size={17} /><span><strong>Looks good from here.</strong><small>{draft.audience.length ? `Your announcement is aimed at ${draft.audience.join(", ")}.` : "Your event will be visible to everyone on campus."}</small></span></div></div>}
-          {error && <p className="form-error" role="alert">{error}</p>}
-        </div>
-        <footer className="create-modal-footer"><span>{step + 1} of {steps.length}</span>{step > 0 && <button className="button button-subtle" onClick={() => { setError(""); setStep((current) => current - 1); }}>Back</button>}{step < steps.length - 1 ? <button className="button button-primary" onClick={next}>Continue <ArrowRight size={16} /></button> : <button className="button button-primary" onClick={publish}><Sparkles size={16} />Publish event</button>}</footer>
-        <span className="sr-only"><ChevronRight /></span>
+    <div className="modal-backdrop create-backdrop" role="presentation" onMouseDown={(mouse) => { if (mouse.target === mouse.currentTarget) onClose(); }}>
+      <section className="create-event-modal event-form-modal" role="dialog" aria-modal="true" aria-labelledby="create-title">
+        <header className="create-modal-header"><button className="icon-button" onClick={onClose} aria-label="Close event form"><ArrowLeft size={19} /></button><div><span className="create-overline">{role === "admin" ? "Admin workspace" : "Club workspace"}</span><h2 id="create-title">{event ? "Edit event" : "Create an event"}</h2></div></header>
+        <form onSubmit={(formEvent) => { formEvent.preventDefault(); submit(event && event.status !== "Draft" ? "edit" : "publish"); }}>
+          <div className="create-form-content event-form-content">
+            <section className="event-form-section">
+              <h3>Basic Details</h3>
+              <label className="form-label">Event title *<input required maxLength={100} value={form.title} onChange={(e) => set("title", e.target.value)} placeholder="Give your event a clear name" /></label>
+              <label className="form-label">Description *<textarea required maxLength={500} rows={3} value={form.description} onChange={(e) => set("description", e.target.value)} placeholder="What will students do or learn?" /></label>
+              <div className="form-two-col"><label className="form-label">Category *<select required value={form.category} onChange={(e) => set("category", e.target.value)}>{categories.map((category) => <option key={category}>{category}</option>)}</select></label><label className="form-label">Organizer *<input required maxLength={80} value={form.organizer} onChange={(e) => set("organizer", e.target.value)} /></label></div>
+              <label className="form-label">Banner image URL or Unsplash photo ID<input value={form.image} onChange={(e) => { set("image", e.target.value); setImageError(false); }} placeholder="Optional image URL or photo-…" /></label>
+              <div className="event-banner-preview">{imageError ? <ImagePlus size={22} /> : <img src={eventImageUrl(form.image, 1000, 80)} alt="Event banner preview" onError={() => setImageError(true)} />}</div>
+            </section>
+            <section className="event-form-section">
+              <h3>Date &amp; Location</h3>
+              <div className="form-two-col"><label className="form-label">Date *<input required type="date" value={form.date} onChange={(e) => set("date", e.target.value)} /></label><label className="form-label">Mode *<select value={form.mode} onChange={(e) => set("mode", e.target.value as CampusEvent["mode"])}><option value="In person">Offline / in person</option><option>Online</option><option>Hybrid</option></select></label><label className="form-label">Start time *<input required type="time" value={form.startTime} onChange={(e) => set("startTime", e.target.value)} /></label><label className="form-label">End time *<input required type="time" value={form.endTime} onChange={(e) => set("endTime", e.target.value)} /></label></div>
+              <label className="form-label">Venue *<input required maxLength={120} value={form.venue} onChange={(e) => set("venue", e.target.value)} placeholder="Building, room or meeting link" /></label>
+            </section>
+            <section className="event-form-section">
+              <h3>Registration</h3>
+              <div className="form-two-col"><label className="form-label">Registration deadline<input type="date" value={form.deadline} onChange={(e) => set("deadline", e.target.value)} /></label><label className="form-label">Participant limit<input type="number" min="1" max="5000" value={form.capacity} onChange={(e) => set("capacity", e.target.value)} placeholder="No limit" /></label></div>
+              <label className="form-label">Registration link<input type="url" value={form.registrationLink} onChange={(e) => set("registrationLink", e.target.value)} placeholder="https://…" /></label>
+            </section>
+            <section className="event-form-section">
+              <h3>Additional</h3>
+              <label className="form-label">Eligibility<input value={form.eligibility} onChange={(e) => set("eligibility", e.target.value)} placeholder="Open to all students" /></label>
+              <label className="form-label">Skills or tags<input value={form.skills} onChange={(e) => set("skills", e.target.value)} placeholder="React, design, Python" /></label>
+              <label className="form-label">Contact information<input value={form.contactInfo} onChange={(e) => set("contactInfo", e.target.value)} placeholder="Email or club contact" /></label>
+              <div className="form-label"><span>Announcement audience</span><div className="form-choice-grid">{["Computer Science", "Design", "2nd year", "3rd year", "AI & ML"].map((item) => <button type="button" key={item} className={`filter-chip ${form.audience.includes(item) ? "selected" : ""}`} aria-pressed={form.audience.includes(item)} onClick={() => set("audience", form.audience.includes(item) ? form.audience.filter((value) => value !== item) : [...form.audience, item])}>{item}</button>)}</div><small className="form-footnote">{form.audience.length ? `Targeting ${form.audience.join(", ")}` : "No filters selected — visible to everyone."}</small></div>
+            </section>
+            {error && <p className="form-error" role="alert">{error}</p>}
+          </div>
+          <footer className="create-modal-footer event-form-footer">
+            <button type="button" className="button button-subtle" onClick={() => submit("draft")}>Save Draft</button>
+            {event && event.status !== "Draft" && <button type="button" className="button button-subtle" onClick={() => submit("edit")}>Save changes</button>}
+            <button type="button" className="button button-primary" onClick={() => submit("publish")}>Publish Event</button>
+          </footer>
+        </form>
       </section>
     </div>
   );

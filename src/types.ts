@@ -1,6 +1,6 @@
 export type UserRole = "student" | "organizer" | "admin";
-export type AppPage = "home" | "discover" | "saved" | "calendar" | "notifications" | "organizer" | "admin" | "settings";
-export type EventStatus = "Published" | "Registration open" | "Registration closed" | "Completed" | "Cancelled";
+export type AppPage = "home" | "discover" | "opportunities" | "saved" | "calendar" | "notifications" | "organizer" | "admin" | "settings" | "teams" | "passport";
+export type EventStatus = "Draft" | "Published" | "Registration open" | "Registration closed" | "Completed" | "Cancelled";
 
 export interface AudienceTarget {
   departments?: string[];
@@ -35,8 +35,28 @@ export interface CampusEvent {
   accent: string;
   trending: number;
   free: boolean;
+  ownerId?: string;
+  registrationLink?: string;
+  contactInfo?: string;
   audience?: string;
   targetAudience?: AudienceTarget;
+}
+
+export type OpportunityType = "Internship" | "Hackathon" | "Competition" | "Scholarship" | "Workshop" | "Course" | "Other";
+
+export interface Opportunity {
+  id: string;
+  title: string;
+  organization: string;
+  type: OpportunityType;
+  description: string;
+  details: string;
+  location: string;
+  deadline: string;
+  skills: string[];
+  eligibility: string;
+  applyUrl: string;
+  tags: string[];
 }
 
 export interface CampusNotification {
@@ -55,6 +75,46 @@ export interface NotificationPreferences {
   announcements: boolean;
 }
 
+export interface TimetableBlock {
+  id: string;
+  title: string;
+  weekday: number;
+  startTime: string;
+  endTime: string;
+  kind: "class" | "lab" | "exam";
+  date?: string;
+}
+
+export interface TeamPost {
+  id: string;
+  eventId: string;
+  eventTitle: string;
+  teamName: string;
+  author: string;
+  lookingFor: string;
+  skills: string[];
+  note: string;
+  openSlots: number;
+  created: string;
+}
+
+export interface TeamJoinRequest {
+  id: string;
+  postId: string;
+  studentName: string;
+  created: string;
+}
+
+export interface PassportStamp {
+  eventId: string;
+  title: string;
+  organizer: string;
+  date: string;
+  category: string;
+  skills: string[];
+  verified: boolean;
+}
+
 export interface AppState {
   role: UserRole;
   page: AppPage;
@@ -66,4 +126,13 @@ export interface AppState {
   studentInterests: string[];
   notificationPreferences: NotificationPreferences;
   notifications: CampusNotification[];
+  timetable: TimetableBlock[];
+  teamPosts: TeamPost[];
+  teamRequests: TeamJoinRequest[];
+  attendedIds: string[];
+  studentSkills: string[];
+  reachUsed: number;
+  reachWeekId: string;
+  studentPingsThisWeek: number;
+  sendAnnouncement: boolean;
 }

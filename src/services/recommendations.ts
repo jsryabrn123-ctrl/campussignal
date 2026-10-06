@@ -28,7 +28,7 @@ export function recommendEvents(
 ): CampusEvent[] {
   const excluded = new Set(excludedIds);
   return events
-    .filter((item) => !excluded.has(item.id) && item.status !== "Cancelled" && item.status !== "Completed")
+    .filter((item) => !excluded.has(item.id) && item.status !== "Draft" && item.status !== "Cancelled" && item.status !== "Completed")
     .map((item, index) => ({ item, score: recommendationScore(item, student, now), index }))
     .sort((left, right) => right.score - left.score || left.index - right.index)
     .map(({ item }) => item);

@@ -1,34 +1,42 @@
-import { ArrowRight, ArrowUpRight, Bell, CalendarDays, ChevronRight, Clock3, MapPin, Sparkles, TrendingUp } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Award, Bell, CalendarDays, ChevronRight, Clock3, MapPin, Sparkles, TrendingUp } from "lucide-react";
 import type { CampusEvent, CampusNotification, AppPage } from "../types";
 import { EventCard, EventRow, SectionHeading } from "../components/UI";
+import OpportunityCard, { recommendedOpportunities } from "../components/OpportunityCard";
+import type { Opportunity } from "../types";
 
 interface DashboardProps {
   events: CampusEvent[];
   savedIds: string[];
   registeredIds: string[];
   notifications: CampusNotification[];
+  opportunities: Opportunity[];
+  studentSkills: string[];
   onOpen: (id: string) => void;
   onSave: (id: string) => void;
   onNavigate: (page: AppPage) => void;
 }
 
-export default function Dashboard({ events, savedIds, registeredIds, notifications, onOpen, onSave, onNavigate }: DashboardProps) {
+export default function Dashboard({ events, savedIds, registeredIds, notifications, opportunities, studentSkills, onOpen, onSave, onNavigate }: DashboardProps) {
   const hour = new Date().getHours();
   const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
   const upcoming = events.filter((event) => registeredIds.includes(event.id)).sort((a, b) => a.date.localeCompare(b.date));
   const firstEvent = events.find((event) => event.id === "campus-hack") ?? events[0];
   const recommended = events.filter((event) => !registeredIds.includes(event.id)).slice(0, 3);
   const deadlineSoon = [...events].sort((a, b) => a.deadline.localeCompare(b.deadline)).slice(0, 3);
+  const opportunityPicks = recommendedOpportunities(opportunities, studentSkills);
 
   return (
     <div className="page-content dashboard-page">
       <header className="welcome-header">
         <div>
           <p className="welcome-date">{new Intl.DateTimeFormat("en", { weekday: "long", month: "long", day: "numeric" }).format(new Date())}</p>
-          <h1>{greeting}, Maya <span aria-hidden="true">✳</span></h1>
+          <h1>{greeting}, JSR <span aria-hidden="true">✳</span></h1>
           <p className="welcome-subtitle">{recommended.length} things worth your time, picked from around campus.</p>
         </div>
-        <button className="quiet-action" onClick={() => onNavigate("notifications")}><Bell size={17} />{notifications.filter((note) => !note.read).length} new</button>
+        <div className="dashboard-quick-actions">
+          <button className="quiet-action" onClick={() => onNavigate("passport")}><Award size={17} />My Passport</button>
+          <button className="quiet-action" onClick={() => onNavigate("notifications")}><Bell size={17} />{notifications.filter((note) => !note.read).length} new</button>
+        </div>
       </header>
 
       <section className="dashboard-top-grid">
@@ -62,6 +70,11 @@ export default function Dashboard({ events, savedIds, registeredIds, notificatio
         <div className="event-card-grid">
           {recommended.map((event) => <EventCard key={event.id} event={event} saved={savedIds.includes(event.id)} registered={registeredIds.includes(event.id)} onOpen={() => onOpen(event.id)} onSave={() => onSave(event.id)} />)}
         </div>
+      </section>
+
+      <section className="section-block recommended-opportunities">
+        <SectionHeading title="Recommended opportunities" detail="Sample internships, challenges, and learning picks matched to your skills." action={<button className="text-link" onClick={() => onNavigate("opportunities")}>Explore all <ArrowRight size={15} /></button>} />
+        <div className="opportunity-grid dashboard-opportunity-grid">{opportunityPicks.map((opportunity) => <OpportunityCard key={opportunity.id} opportunity={opportunity} studentSkills={studentSkills} onOpen={() => onNavigate("opportunities")} />)}</div>
       </section>
 
       <section className="bottom-discovery-grid">

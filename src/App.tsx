@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import {
   Activity, Bell, CalendarDays, ChevronDown, Compass, Home, Layers3, Menu, Plus, Search, Settings,
-  ShieldCheck, Sparkles, Bookmark, X, UsersRound, Check,
+  ShieldCheck, Sparkles, Bookmark, X, UsersRound, Check, BriefcaseBusiness,
 } from "lucide-react";
 import { seedEvents, seedNotifications } from "./data/events";
 import type { AppPage, AppState, CampusEvent, UserRole } from "./types";
@@ -15,9 +15,14 @@ import Admin from "./pages/Admin";
 import CreateEvent from "./pages/CreateEvent";
 import EventDetailDialog from "./pages/EventDetailDialog";
 import { CalendarPage, NotificationsPage, SavedPage, SettingsPage } from "./pages/OtherPages";
+import TeamFinder from "./pages/TeamFinder";
+import PassportPage from "./pages/PassportPage";
+import { seedTeamPosts } from "./services/teams";
+import { sampleOpportunities } from "./data/opportunities";
+import Opportunities from "./pages/Opportunities";
 
 const storageKey = "campus-signal-workspace";
-const demoStudent = { id: "maya", department: "Computer Science", year: 2, interests: ["AI & ML", "Design", "Career", "Robotics", "Technology"], skills: ["Python", "React"], participatedCategories: ["AI & ML"] };
+const demoStudent = { id: "jsr", department: "Computer Science", year: 2, interests: ["AI & ML", "Design", "Career", "Robotics", "Technology"], skills: ["Python", "React"], participatedCategories: ["AI & ML"] };
 const defaultState: AppState = {
   role: "student",
   page: "home",
@@ -29,6 +34,15 @@ const defaultState: AppState = {
   studentInterests: ["AI & ML", "Design", "Career", "Robotics", "Technology"],
   notificationPreferences: { reminders: true, recommendations: true, announcements: true },
   notifications: seedNotifications,
+  timetable: [],
+  teamPosts: seedTeamPosts,
+  teamRequests: [],
+  attendedIds: ["open-source-night", "pitch-gym"],
+  studentSkills: demoStudent.skills,
+  reachUsed: 0,
+  reachWeekId: "",
+  studentPingsThisWeek: 0,
+  sendAnnouncement: false,
 };
 function loadState(): AppState {
   try {
@@ -40,6 +54,10 @@ function loadState(): AppState {
       ...parsed,
       events: Array.isArray(parsed.events) && parsed.events.length ? parsed.events : defaultState.events,
       studentInterests: Array.isArray(parsed.studentInterests) ? parsed.studentInterests : defaultState.studentInterests,
+      teamPosts: Array.isArray(parsed.teamPosts) ? parsed.teamPosts : defaultState.teamPosts,
+      teamRequests: Array.isArray(parsed.teamRequests) ? parsed.teamRequests : defaultState.teamRequests,
+      attendedIds: Array.isArray(parsed.attendedIds) ? parsed.attendedIds : defaultState.attendedIds,
+      studentSkills: Array.isArray(parsed.studentSkills) ? parsed.studentSkills : defaultState.studentSkills,
       notificationPreferences: { ...defaultState.notificationPreferences, ...parsed.notificationPreferences },
       notifications: Array.isArray(parsed.notifications) ? parsed.notifications : defaultState.notifications,
     };
@@ -53,13 +71,17 @@ const navigation: Record<UserRole, { label: string; page: AppPage; icon: typeof 
   student: [
     { label: "Home", page: "home", icon: Home },
     { label: "Discover", page: "discover", icon: Compass },
+    { label: "Opportunities", page: "opportunities", icon: BriefcaseBusiness },
     { label: "Saved", page: "saved", icon: Bookmark },
     { label: "Calendar", page: "calendar", icon: CalendarDays },
     { label: "Notifications", page: "notifications", icon: Bell },
+    { label: "Team Finder", page: "teams", icon: UsersRound },
+    { label: "My Passport", page: "passport", icon: Sparkles },
   ],
   organizer: [
     { label: "Organizer home", page: "organizer", icon: Activity },
     { label: "Discover", page: "discover", icon: Compass },
+    { label: "Opportunities", page: "opportunities", icon: BriefcaseBusiness },
     { label: "My events", page: "organizer", icon: CalendarDays },
     { label: "Participants", page: "organizer", icon: UsersRound },
     { label: "Notifications", page: "notifications", icon: Bell },
@@ -67,6 +89,7 @@ const navigation: Record<UserRole, { label: string; page: AppPage; icon: typeof 
   admin: [
     { label: "Overview", page: "admin", icon: Activity },
     { label: "Events", page: "admin", icon: CalendarDays },
+    { label: "Opportunities", page: "opportunities", icon: BriefcaseBusiness },
     { label: "Organizers", page: "admin", icon: ShieldCheck },
     { label: "People", page: "admin", icon: UsersRound },
     { label: "Reports", page: "admin", icon: Layers3 },
@@ -76,23 +99,28 @@ const navigation: Record<UserRole, { label: string; page: AppPage; icon: typeof 
 const pageNames: Record<AppPage, string> = {
   home: "Your campus, in the loop",
   discover: "Find your next thing",
+  opportunities: "Internships & Opportunities",
   saved: "Saved for later",
   calendar: "Your calendar",
   notifications: "Notifications",
   organizer: "Organizer workspace",
   admin: "Platform overview",
   settings: "Settings",
+  teams: "Find a team",
+  passport: "My Passport",
 };
 
 export default function App() {
   const [state, setState] = useState<AppState>(loadState);
   const [selectedEventId, setSelectedEventId] = useState<string | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<string | null>(null);
   const [roleMenuOpen, setRoleMenuOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [toast, setToast] = useState("");
   const unreadCount = state.notifications.filter((item) => !item.read).length;
   const selectedEvent = state.events.find((event) => event.id === selectedEventId);
+  const editingEvent = state.events.find((event) => event.id === editingEventId);
   const visibleEvents = useMemo(() => recommendEvents(state.events, { interests: state.studentInterests, department: "Computer Science", year: 2 }, [], new Date()), [state.events, state.studentInterests]);
 
   useEffect(() => { localStorage.setItem(storageKey, JSON.stringify(state)); }, [state]);
@@ -110,6 +138,7 @@ export default function App() {
     notify(isSaved ? "Removed from your saved events." : "Saved for later.");
   };
   const register = (event: CampusEvent) => {
+    if (state.role !== "student") return;
     const decision = getRegistrationDecision(event, state.registeredIds, state.waitlistedIds);
     if (decision === "already-registered") { notify("You’re already registered for this event."); return; }
     if (decision === "closed") { notify("Registration is closed for this event."); return; }
@@ -132,7 +161,7 @@ export default function App() {
   };
   const cancelEvent = (id: string) => {
     const event = state.events.find((item) => item.id === id);
-    if (!event) return;
+    if (!event || (state.role !== "admin" && !(state.role === "organizer" && (event.ownerId === "computer-science-club" || (!event.ownerId && event.organizer === "Computer Science Club"))))) return;
     if (!window.confirm(`Cancel “${event.title}”? Students will no longer be able to register.`)) return;
     update({ events: state.events.map((item) => item.id === id ? { ...item, status: "Cancelled" } : item) });
     notify("Event cancelled.");
@@ -143,17 +172,88 @@ export default function App() {
     notify(`Demo view changed to ${role}.`);
   };
   const publishEvent = (event: CampusEvent) => {
+    if (state.role === "student") return;
+    if (state.role === "organizer" && event.ownerId !== "computer-science-club") return;
+    const existing = state.events.find((item) => item.id === event.id);
+    if (existing && state.role === "organizer" && !(existing.ownerId === "computer-science-club" || (!existing.ownerId && existing.organizer === "Computer Science Club"))) return;
+    if (new Date(event.date) < new Date()) {
+      notify("The event date cannot be in the past.");
+      return;
+    }
+    const shouldAnnounce = state.notificationPreferences.announcements &&
+      event.status !== "Draft" &&
+      (!existing || existing.status === "Draft") &&
+      matchesAudience(demoStudent, event.targetAudience ?? {});
     update({
-      events: [event, ...state.events],
-      notifications: state.notificationPreferences.announcements && matchesAudience(demoStudent, event.targetAudience ?? {})
+      events: existing ? state.events.map((item) => item.id === event.id ? event : item) : [event, ...state.events],
+      notifications: shouldAnnounce
         ? [{ id: `announcement-${Date.now()}`, title: "A new campus event", body: `${event.title} is now open for registration.`, time: "Just now", priority: "normal", read: false, eventId: event.id }, ...state.notifications]
         : state.notifications,
     });
     setCreateOpen(false);
+    setEditingEventId(null);
     setSelectedEventId(event.id);
-    notify("Event published. It’s live on the campus feed.");
+    notify("Event published successfully!");
+  };
+  const saveEventDraft = (event: CampusEvent) => {
+    if (state.role === "student" || (state.role === "organizer" && event.ownerId !== "computer-science-club")) return;
+    const exists = state.events.some((item) => item.id === event.id);
+    update({ events: exists ? state.events.map((item) => item.id === event.id ? event : item) : [event, ...state.events] });
+    setCreateOpen(false);
+    setEditingEventId(null);
+    notify("Draft saved.");
+  };
+  const saveEventChanges = (event: CampusEvent) => {
+    if (state.role === "student") return;
+    const existing = state.events.find((item) => item.id === event.id);
+    if (!existing || (state.role === "organizer" && !(existing.ownerId === "computer-science-club" || (!existing.ownerId && existing.organizer === "Computer Science Club")))) return;
+    update({ events: state.events.map((item) => item.id === event.id ? event : item) });
+    setCreateOpen(false);
+    setEditingEventId(null);
+    notify("Event changes saved.");
+  };
+  const deleteEvent = (id: string) => {
+    const event = state.events.find((item) => item.id === id);
+    if (!event || (state.role !== "admin" && !(state.role === "organizer" && (event.ownerId === "computer-science-club" || (!event.ownerId && event.organizer === "Computer Science Club"))))) return;
+    if (!window.confirm(`Delete “${event.title}”? This cannot be undone.`)) return;
+    const postIds = state.teamPosts.filter((post) => post.eventId === id).map((post) => post.id);
+    update({
+      events: state.events.filter((item) => item.id !== id),
+      savedIds: state.savedIds.filter((item) => item !== id),
+      registeredIds: state.registeredIds.filter((item) => item !== id),
+      waitlistedIds: state.waitlistedIds.filter((item) => item !== id),
+      attendedIds: state.attendedIds.filter((item) => item !== id),
+      featuredIds: state.featuredIds.filter((item) => item !== id),
+      notifications: state.notifications.filter((item) => item.eventId !== id),
+      teamPosts: state.teamPosts.filter((post) => post.eventId !== id),
+      teamRequests: state.teamRequests.filter((request) => !postIds.includes(request.postId)),
+    });
+    if (selectedEventId === id) setSelectedEventId(null);
+    notify("Event deleted.");
+  };
+  const setEventStatus = (id: string, status: CampusEvent["status"]) => {
+    const event = state.events.find((item) => item.id === id);
+    if (!event || (state.role !== "admin" && !(state.role === "organizer" && (event.ownerId === "computer-science-club" || (!event.ownerId && event.organizer === "Computer Science Club"))))) return;
+    if (status === "Registration open" && new Date(event.date) < new Date()) {
+      notify("The event date cannot be in the past.");
+      return;
+    }
+    update({ events: state.events.map((item) => item.id === id ? { ...item, status } : item) });
+    notify(status === "Registration open" ? "Event published successfully!" : status === "Cancelled" ? "Event cancelled." : "Registration closed.");
+  };
+  const openCreateEvent = () => {
+    if (state.role === "student") return;
+    setEditingEventId(null);
+    setCreateOpen(true);
+  };
+  const openEditEvent = (id: string) => {
+    const event = state.events.find((item) => item.id === id);
+    if (!event || (state.role !== "admin" && !(state.role === "organizer" && (event.ownerId === "computer-science-club" || (!event.ownerId && event.organizer === "Computer Science Club"))))) return;
+    setEditingEventId(id);
+    setCreateOpen(true);
   };
   const toggleFeatured = (id: string) => {
+    if (state.role !== "admin") return;
     const featured = state.featuredIds.includes(id);
     update({ featuredIds: featured ? state.featuredIds.filter((item) => item !== id) : [...state.featuredIds, id] });
     notify(featured ? "Removed from featured events." : "Featured on the campus feed.");
@@ -173,21 +273,33 @@ export default function App() {
     notify("Demo workspace reset.");
   };
   const openEvent = useCallback((id: string) => setSelectedEventId(id), []);
+  const createTeamPost = (post: Omit<AppState["teamPosts"][number], "id" | "author" | "created">) => {
+    update({ teamPosts: [{ ...post, id: `team-${Date.now()}`, author: "JSR", created: "Just now" }, ...state.teamPosts] });
+    notify("Your team post is live.");
+  };
+  const requestToJoin = (postId: string) => {
+    if (state.teamRequests.some((request) => request.postId === postId)) return;
+    update({ teamRequests: [...state.teamRequests, { id: `request-${Date.now()}`, postId, studentName: "JSR", created: new Date().toISOString() }] });
+    notify("Your request to join was sent.");
+  };
 
   let pageContent;
   switch (state.page) {
-    case "home": pageContent = <Dashboard events={visibleEvents} savedIds={state.savedIds} registeredIds={state.registeredIds} notifications={state.notifications} onOpen={openEvent} onSave={toggleSaved} onNavigate={openPage} />; break;
+    case "home": pageContent = <Dashboard events={visibleEvents} savedIds={state.savedIds} registeredIds={state.registeredIds} notifications={state.notifications} opportunities={sampleOpportunities} studentSkills={state.studentSkills} onOpen={openEvent} onSave={toggleSaved} onNavigate={openPage} />; break;
     case "discover": pageContent = <Discover events={visibleEvents} savedIds={state.savedIds} registeredIds={state.registeredIds} onOpen={openEvent} onSave={toggleSaved} />; break;
+    case "opportunities": pageContent = <Opportunities opportunities={sampleOpportunities} studentSkills={state.studentSkills} />; break;
     case "saved": pageContent = <SavedPage events={visibleEvents} savedIds={state.savedIds} registeredIds={state.registeredIds} onOpen={openEvent} onSave={toggleSaved} onDiscover={() => openPage("discover")} />; break;
     case "calendar": pageContent = <CalendarPage events={state.events} registeredIds={state.registeredIds} savedIds={state.savedIds} onOpen={openEvent} />; break;
     case "notifications": pageContent = <NotificationsPage notifications={state.notifications} onRead={markRead} onReadAll={() => update({ notifications: state.notifications.map((item) => ({ ...item, read: true })) })} onOpen={openEvent} />; break;
-    case "organizer": pageContent = <Organizer events={state.events} onCreate={() => setCreateOpen(true)} onOpen={openEvent} onCancel={cancelEvent} />; break;
-    case "admin": pageContent = <Admin events={state.events} featuredIds={state.featuredIds} onFeature={toggleFeatured} onCancel={cancelEvent} onOpen={openEvent} />; break;
+    case "organizer": pageContent = <Organizer events={state.events.filter((event) => event.ownerId === "computer-science-club" || (!event.ownerId && event.organizer === "Computer Science Club"))} onCreate={openCreateEvent} onOpen={openEvent} onEdit={openEditEvent} onDelete={deleteEvent} onPublish={(id) => setEventStatus(id, "Registration open")} onCancel={cancelEvent} />; break;
+    case "admin": pageContent = <Admin events={state.events} featuredIds={state.featuredIds} onCreate={openCreateEvent} onFeature={toggleFeatured} onCancel={cancelEvent} onEdit={openEditEvent} onDelete={deleteEvent} onPublish={(id) => setEventStatus(id, "Registration open")} onOpen={openEvent} />; break;
     case "settings": pageContent = <SettingsPage role={state.role} interests={state.studentInterests} notificationPreferences={state.notificationPreferences} onInterestsChange={(studentInterests) => update({ studentInterests })} onPreferenceChange={setNotificationPreference} onReset={resetWorkspace} />; break;
+    case "teams": pageContent = state.role === "student" ? <TeamFinder events={state.events} posts={state.teamPosts} requests={state.teamRequests} studentSkills={state.studentSkills} studentInterests={state.studentInterests} onCreate={createTeamPost} onRequest={requestToJoin} /> : <SettingsPage role={state.role} interests={state.studentInterests} notificationPreferences={state.notificationPreferences} onInterestsChange={(studentInterests) => update({ studentInterests })} onPreferenceChange={setNotificationPreference} onReset={resetWorkspace} />; break;
+    case "passport": pageContent = state.role === "student" ? <PassportPage events={state.events} attendedIds={state.attendedIds} registeredIds={state.registeredIds} /> : <SettingsPage role={state.role} interests={state.studentInterests} notificationPreferences={state.notificationPreferences} onInterestsChange={(studentInterests) => update({ studentInterests })} onPreferenceChange={setNotificationPreference} onReset={resetWorkspace} />; break;
   }
 
   const roles: { value: UserRole; label: string; initials: string }[] = [
-    { value: "student", label: "Maya Chen · Student", initials: "MC" },
+    { value: "student", label: "JSR · Student", initials: "JSR" },
     { value: "organizer", label: "Computer Science Club", initials: "CS" },
     { value: "admin", label: "Campus administrator", initials: "AD" },
   ];
@@ -212,7 +324,7 @@ export default function App() {
       </main>
       <nav className="mobile-bottom-nav" aria-label="Quick navigation">{(state.role === "student" ? [{ page: "home" as const, icon: Home, label: "Home" }, { page: "discover" as const, icon: Compass, label: "Discover" }, { page: "saved" as const, icon: Bookmark, label: "Saved" }, { page: "calendar" as const, icon: CalendarDays, label: "Calendar" }]: state.role === "organizer" ? [{ page: "organizer" as const, icon: Activity, label: "Home" }, { page: "discover" as const, icon: Compass, label: "Discover" }, { page: "notifications" as const, icon: Bell, label: "Inbox" }, { page: "settings" as const, icon: Settings, label: "Settings" }] : [{ page: "admin" as const, icon: Activity, label: "Overview" }, { page: "discover" as const, icon: Compass, label: "Events" }, { page: "notifications" as const, icon: Bell, label: "Inbox" }, { page: "settings" as const, icon: Settings, label: "Settings" }]).map(({ page, icon: Icon, label }) => <button key={page} className={state.page === page ? "active" : ""} onClick={() => openPage(page)}><Icon size={19} /><span>{label}</span></button>)}</nav>
       {selectedEvent && <EventDetailDialog event={selectedEvent} registered={state.registeredIds.includes(selectedEvent.id)} saved={state.savedIds.includes(selectedEvent.id)} waitlisted={state.waitlistedIds.includes(selectedEvent.id)} canRegister={state.role === "student"} relatedEvents={state.events.filter((item) => item.id !== selectedEvent.id && item.category === selectedEvent.category)} onClose={() => setSelectedEventId(null)} onRegister={() => register(selectedEvent)} onSave={() => toggleSaved(selectedEvent.id)} onOpenRelated={setSelectedEventId} />}
-      {createOpen && <CreateEvent onClose={() => setCreateOpen(false)} onPublish={publishEvent} />}
+      {createOpen && state.role !== "student" && <CreateEvent key={editingEvent?.id ?? "new"} role={state.role} event={editingEvent} onClose={() => { setCreateOpen(false); setEditingEventId(null); }} onSaveDraft={saveEventDraft} onPublish={publishEvent} onSaveChanges={saveEventChanges} />}
       {toast && <div className="toast-message" role="status"><span><Check size={16} /></span>{toast}<button onClick={() => setToast("")} aria-label="Dismiss message"><X size={15} /></button></div>}
     </div>
   );

@@ -7,7 +7,7 @@ Campus Signal helps students find events that fit their interests and gives camp
 - A personalized student home with recommendations, upcoming events, closing dates, and campus activity
 - Event discovery with search, category and format filters, and sort options
 - Event details, registration, waitlisting, saved events, calendar, and notifications
-- A multi-step event publishing flow with saved drafts and student audience targeting
+- Event creation and editing for admins and the demo club, with drafts, publishing, cancellation, and deletion
 - Organizer metrics, participant counts, event management, and engagement views
 - Admin overview, organizer approval examples, and event feature/moderation actions
 - Student, organizer, and admin demo roles
@@ -56,7 +56,8 @@ Open the local URL Vite prints. The demo opens in the student experience. Use **
 - The initial workspace includes 15 campus events, saved items, a registration, and notifications.
 - Registering updates capacity, adds a confirmation notification, and puts the event in the calendar.
 - Full events offer a waitlist; duplicate registrations are blocked.
-- Organizer drafts autosave to browser storage while the event form is open.
+- Event drafts and workspace changes persist in browser storage. Drafts are visible to admins and their owning organizer, but not to students.
+- Admins can manage every event. The organizer demo can manage events created by its club; student views remain read-only for event management.
 - Published events appear in discovery and the organizer event board.
 - Audience targeting supports department, year, interest, skill, and prior participation filters in the matching service.
 - Saved events and workspace changes stay in the browser used to make them.

@@ -17,4 +17,8 @@ describe("event registration", () => {
     expect(getRegistrationDecision(event, [], [event.id])).toBe("already-waitlisted");
     expect(getRegistrationDecision({ ...event, status: "Cancelled" }, [], [])).toBe("closed");
   });
+
+  it("does not allow registration for a draft", () => {
+    expect(getRegistrationDecision({ ...event, status: "Draft" }, [], [])).toBe("closed");
+  });
 });

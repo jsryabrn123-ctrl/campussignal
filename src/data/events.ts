@@ -58,6 +58,8 @@ const event = (
 };
 
 export const seedEvents: CampusEvent[] = [
+  { ...event("open-source-night", "Open source office hours", "Ship a first pull request with mentors in the room.", "Technology", "Code Collective", "Computer Science", -18, "16:00", 2, "Digital Studio, Library", ["Web Development", "Git", "Technology"], "photo-1515879218367-8466d910aaa4", "#dbe4ff", 70, 48, 60), status: "Completed" },
+  { ...event("pitch-gym", "Pitch gym", "Practice a two-minute story until it sounds like you.", "Career", "Entrepreneurship Cell", "Business", -9, "15:00", 2, "Seminar Room 2", ["Career", "Public speaking", "Entrepreneurship"], "photo-1551836022-d5d88e9218df", "#ffefba", 74, 41, 50), status: "Completed" },
   event("ai-lab", "Build with AI: a hands-on lab", "Make a tiny AI tool that solves a real campus problem.", "AI & ML", "Computer Science Club", "Computer Science", 1, "14:00", 2, "Innovation Lab, Block C", ["AI & ML", "Python", "Technology"], "photo-1677442136019-21780ecad995", "#e8f178", 96, 84, 100),
   event("design-systems", "Design systems, without the drama", "A practical workshop on building interfaces that feel like one product.", "Design", "Design Society", "Design", 2, "16:00", 1.5, "Studio 204", ["Design", "Figma", "Web Development"], "photo-1558655146-9f40138edfeb", "#c7d2ff", 81, 52),
   event("drone-flight", "Drone flight school", "Get behind the controls and learn the basics of safe drone flight.", "Robotics", "Aero & Robotics Club", "Mechanical Engineering", 4, "11:00", 2, "North Field", ["Robotics", "Technology", "Engineering"], "photo-1473968512647-3e447244af8f", "#d2f0e2", 89, 96, 110),
